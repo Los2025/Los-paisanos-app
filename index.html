@@ -1,0 +1,1165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Los Paisanos — BSA Tracking System</title>
+<style>
+/* ============ Design tokens ============ */
+:root{
+  --navy:#0F2438;
+  --navy-2:#16324A;
+  --paper:#FAF8F4;
+  --panel:#FFFFFF;
+  --teal:#0E7C7B;
+  --teal-dark:#0A5F5E;
+  --alert:#C4432E;
+  --alert-dark:#9E3423;
+  --ink:#1B2731;
+  --slate:#5B6B77;
+  --slate-light:#8B99A3;
+  --line:#DDE3E7;
+  --line-soft:#EAEEF1;
+  --tint:#EFF4F5;
+  --gold:#C79A3A;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --radius:6px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);color:var(--ink);background:var(--paper);font-size:14px;line-height:1.5}
+::selection{background:#c9e6e5}
+h1,h2,h3{font-family:var(--font)}
+
+/* ============ Header ============ */
+header{height:76px;background:var(--navy);border-bottom:3px solid var(--gold);color:#fff;display:flex;align-items:center;padding:0 28px}
+.brand{font-size:20px;font-weight:700;letter-spacing:.2px}
+.brand small{display:block;font-size:12px;font-weight:400;margin-top:3px;color:#9FB4C4;letter-spacing:.2px}
+
+main{max-width:1320px;margin:auto;padding:34px 28px 60px}
+.title{font-size:20px;font-weight:700;margin:0 0 20px;color:var(--navy);padding-bottom:14px;border-bottom:2px solid var(--navy)}
+
+/* ============ Form basics ============ */
+label{display:block;font-size:12px;margin:0 0 6px;color:var(--slate);font-weight:600;letter-spacing:.1px}
+input{width:100%;height:40px;border:1px solid #C9D2D8;border-radius:4px;padding:8px 11px;font-size:14px;font-family:var(--font);color:var(--ink);background:#fff;transition:border-color .12s ease}
+input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(14,124,123,.14)}
+input.readonly{background:var(--line-soft);color:var(--slate)}
+
+.lookupRow{display:grid;grid-template-columns:440px 1fr;gap:20px;align-items:end;margin-bottom:4px}
+.lookup{position:relative}
+.hint{color:var(--slate-light);font-size:12px;padding-bottom:11px}
+.results{position:absolute;left:0;right:0;top:66px;background:var(--panel);border:1px solid var(--line);border-radius:4px;z-index:10;box-shadow:0 10px 24px rgba(15,36,56,.12);max-height:280px;overflow:auto}
+.results button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line-soft);background:#fff;padding:10px 12px;cursor:pointer;font-family:var(--font)}
+.results button:last-child{border-bottom:0}
+.results button:hover{background:var(--tint)}
+.results button strong{color:var(--ink);font-weight:600}
+.results small{display:block;color:var(--slate-light);margin-top:2px}
+
+.formGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px 24px;margin-top:20px}
+.newCustomer{margin-top:18px;padding:18px 20px;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:4px;background:#F5FAF9}
+.newCustomer h3{margin:0;font-size:14px;color:var(--teal-dark);font-weight:700}
+.newCustomer p{margin:4px 0 14px;color:var(--slate);font-size:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+
+.primary{background:var(--teal);color:#fff;border:0;border-radius:4px;padding:10px 18px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:var(--font);transition:background .12s ease}
+.primary:hover{background:var(--teal-dark)}
+.primary:disabled{opacity:.6;cursor:default}
+.save{margin-top:22px}
+
+/* ============ Transaction history ============ */
+.history{display:none;margin-top:30px;padding-top:22px;border-top:1px solid var(--line)}
+.history.show-history{display:block !important}
+.history h3{font-size:14px;font-weight:700;margin:0 0 12px;color:var(--navy);text-transform:uppercase;letter-spacing:.4px}
+
+.table{overflow:auto;border:1px solid var(--line);border-radius:4px}
+table{width:100%;min-width:950px;border-collapse:collapse}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line-soft)}
+th{background:var(--tint);font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.4px}
+td{font-size:13.5px;color:var(--ink)}
+tbody tr:hover{background:#FBFCFC}
+.empty{text-align:center;padding:30px;color:var(--slate-light)}
+
+.delete{background:transparent;color:var(--alert);border:1px solid #E9C6BE;border-radius:4px;width:32px;height:32px;cursor:pointer;font-size:14px;line-height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.delete:hover{background:#FBEEEC}
+.copy-btn{background:transparent;color:var(--teal-dark);border:1px solid #BFE0DF;border-radius:4px;height:32px;padding:0 12px;cursor:pointer;font-size:12.5px;font-weight:700;margin-left:6px}
+.copy-btn:hover{background:#EAF5F4}
+
+.transactions-total td{font-weight:700;background:var(--tint);border-top:2px solid var(--navy);padding:13px 12px;color:var(--navy)}
+.transactions-total td:first-child{text-align:right;font-size:12px;letter-spacing:.4px;text-transform:uppercase;color:var(--slate)}
+
+@media(max-width:900px){.lookupRow,.formGrid,.two{grid-template-columns:1fr}}
+
+/* ============ Header menu ============ */
+.menuWrap{margin-left:auto;position:relative}
+.moreBtn{width:40px;height:40px;border:0;border-radius:6px;background:rgba(255,255,255,.06);color:#fff;font-size:22px;line-height:40px;cursor:pointer}
+.moreBtn:hover{background:rgba(255,255,255,.14)}
+.moreMenu{display:none;position:absolute;right:0;top:48px;width:260px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 28px rgba(15,36,56,.18);z-index:100;overflow:hidden}
+.moreMenu.open{display:block}
+.moreMenu button{display:flex;gap:10px;align-items:center;width:100%;padding:13px 16px;border:0;border-bottom:1px solid var(--line-soft);background:#fff;text-align:left;cursor:pointer;font-size:13.5px;color:var(--ink);font-family:var(--font)}
+.moreMenu button:last-child{border-bottom:0}
+.moreMenu button:hover{background:var(--tint)}
+.logout-btn{color:var(--alert) !important}
+
+/* ============ View switching ============ */
+.entry-view{display:block}
+#thresholdView{display:none}
+body.threshold-mode .entry-view{display:none}
+body.threshold-mode #thresholdView{display:block}
+body.threshold-mode .history{display:none !important}
+
+/* ============ Compliance / threshold view ============ */
+.customer-list-wrap{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.customer-list-header,.customer-row{display:grid;grid-template-columns:2fr 1.35fr 1fr 1.25fr 1.35fr;gap:12px;align-items:center}
+.customer-list-header{background:var(--navy);padding:12px 18px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#B9C8D3}
+.customer-row{padding:15px 18px;border-top:1px solid var(--line-soft)}
+.customer-row:hover{background:#FBF7F0}
+.customer-name{font-weight:700;color:var(--navy)}
+.customer-phone{color:var(--slate)}
+.customer-count{text-align:center;color:var(--slate)}
+.customer-total{font-weight:800;color:var(--alert)}
+.customer-last{color:var(--slate)}
+.customer-open{border:0;background:none;color:var(--navy);font-weight:700;cursor:pointer;padding:0;text-align:left;font-family:var(--font)}
+.customer-open:hover{color:var(--teal-dark);text-decoration:underline}
+.threshold-empty{padding:34px;text-align:center;color:var(--slate);background:var(--panel);border:1px solid var(--line);border-radius:6px}
+@media(max-width:900px){
+  .customer-list-header{display:none}
+  .customer-row{grid-template-columns:1fr 1fr;padding:15px}
+  .customer-row>div{min-width:0}
+}
+
+/* ============ Review detail ============ */
+#reviewDetailView{display:none;padding:0}
+body.review-detail-mode #entryView,
+body.review-detail-mode #thresholdView{display:none!important}
+body.review-detail-mode #reviewDetailView{display:block}
+.review-card{max-width:1050px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:26px 28px}
+.review-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:20px}
+.review-title{font-size:22px;font-weight:700;margin:0 0 4px;color:var(--navy)}
+.review-sub{color:var(--slate);margin:0;font-size:13px}
+.review-back{border:1px solid var(--line);background:#fff;color:var(--navy);padding:9px 15px;border-radius:4px;cursor:pointer;font-weight:600;font-size:13px;font-family:var(--font)}
+.review-back:hover{background:var(--tint)}
+.review-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 24px}
+.review-stat{border:1px solid var(--line);border-radius:5px;padding:14px 16px;background:var(--tint)}
+.review-stat span{display:block;color:var(--slate);font-size:12px;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.review-stat strong{font-size:21px;color:var(--navy)}
+.review-table{width:100%;border-collapse:collapse}
+.review-table th,.review-table td{padding:10px 10px;border-bottom:1px solid var(--line-soft);text-align:left;font-size:13.5px}
+.review-table th{background:var(--tint);font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--slate);font-weight:700}
+.review-running{font-weight:700;color:var(--navy)}
+@media(max-width:700px){.review-top{align-items:flex-start;flex-direction:column}.review-stats{grid-template-columns:1fr}.review-card{padding:16px}}
+
+/* ============ Login / signup screens ============ */
+#loginView,#signupView{position:fixed;inset:0;background:linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);display:flex;align-items:center;justify-content:center;z-index:9999;overflow:auto;padding:30px 0}
+#signupView{display:none}
+body.signup-mode #loginView{display:none!important}
+body.signup-mode #signupView{display:flex}
+.login-card,.signup-card{width:min(420px,92vw);background:#fff;border-radius:8px;box-shadow:0 20px 50px rgba(0,0,0,.3);padding:34px 32px}
+.signup-card{width:min(480px,92vw)}
+.login-brand,.signup-brand{font-size:22px;font-weight:700;color:var(--navy);margin-bottom:4px}
+.login-sub,.signup-sub{color:var(--slate);font-size:12.5px;margin-bottom:26px;padding-bottom:18px;border-bottom:1px solid var(--line-soft)}
+.login-card label,.signup-card label{margin-top:14px}
+.login-card input,.signup-card input{height:42px}
+.login-btn,.signup-action{width:100%;margin-top:22px;background:var(--teal);color:#fff;border:0;border-radius:4px;padding:12px 16px;font-weight:700;cursor:pointer;font-family:var(--font);font-size:14px}
+.login-btn:hover,.signup-action:hover{background:var(--teal-dark)}
+.login-btn:disabled,.signup-action:disabled{opacity:.6;cursor:default}
+.login-error,.signup-error{display:none;margin-top:14px;padding:11px 12px;border-radius:4px;background:#FBEEEC;color:var(--alert-dark);font-size:13px;border:1px solid #EFCAC1}
+.login-success,.signup-success{display:none;margin-top:14px;padding:11px 12px;border-radius:4px;background:#EAF5F0;color:var(--teal-dark);font-size:13px;border:1px solid #C3E0D6}
+body.logged-in #loginView{display:none}
+.forgot-btn{width:100%;background:none;border:0;color:var(--teal-dark);font-size:12.5px;font-weight:600;cursor:pointer;margin-top:12px;padding:2px;font-family:var(--font)}
+.forgot-btn:hover{text-decoration:underline}
+.reset-box{margin-top:16px;padding-top:16px;border-top:1px solid var(--line-soft);display:none}
+.reset-message{margin-top:10px;font-size:12.5px;color:var(--slate)}
+.two-field{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:520px){.two-field{grid-template-columns:1fr}}
+
+/* ============ Profile ============ */
+#profileView{display:none;padding:0}
+body.profile-mode #entryView,
+body.profile-mode #thresholdView,
+body.profile-mode #reviewDetailView{display:none!important}
+body.profile-mode #profileView{display:block}
+body.profile-mode .history{display:none !important}
+.profile-card{max-width:680px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:28px}
+.profile-top{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:8px}
+.profile-title{font-size:21px;font-weight:700;margin:0 0 5px;color:var(--navy)}
+.profile-sub{margin:0;color:var(--slate);font-size:13px}
+.profile-section{border-top:1px solid var(--line);padding-top:18px;margin-top:22px}
+.profile-section h3{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--slate);font-weight:700}
+.profile-row{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
+.profile-row:last-child{border-bottom:0}
+.profile-label{font-weight:600;color:var(--slate)}
+.profile-value{color:var(--ink)}
+@media(max-width:600px){.profile-row{grid-template-columns:1fr;gap:4px}.profile-top{flex-direction:column}}
+.profile-value input{width:min(420px,100%);box-sizing:border-box;border:1px solid #C9D2D8;border-radius:4px;padding:8px 10px;font-size:13px;font-family:var(--font)}
+.profile-edit-btn{margin-left:10px;border:0;background:none;color:var(--teal-dark);font-weight:600;cursor:pointer;padding:2px 4px;font-size:12.5px;font-family:var(--font)}
+.profile-edit-btn:hover{text-decoration:underline}
+
+/* ============ Modals ============ */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,36,56,.55);display:flex;align-items:center;justify-content:center;z-index:10000}
+.modal-card{width:min(420px,92vw);background:#fff;border-radius:8px;padding:26px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.modal-card h3{margin:0 0 8px;color:var(--navy);font-size:17px}
+.modal-card p{margin:0 0 16px;color:var(--slate);font-size:13px}
+.modal-card input{width:100%;box-sizing:border-box;border:1px solid #C9D2D8;border-radius:4px;padding:10px 11px;font-size:14px;font-family:var(--font);margin-bottom:10px}
+.modal-card label{display:block;font-size:12px;color:var(--slate);margin-bottom:6px;font-weight:600}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.modal-actions button{border:1px solid var(--line);background:#fff;border-radius:4px;padding:9px 15px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink)}
+.modal-actions button.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.modal-actions button.primary:hover{background:var(--teal-dark)}
+.modal-error{display:none;color:var(--alert-dark);font-size:13px;margin-top:2px;margin-bottom:8px}
+
+/* ============ Loading / status ============ */
+.status-banner{max-width:1320px;margin:0 auto;padding:12px 28px 0}
+.status-pill{display:inline-block;padding:8px 14px;border-radius:4px;font-size:12.5px;font-weight:600}
+.status-pill.info{background:var(--tint);color:var(--slate)}
+.status-pill.error{background:#FBEEEC;color:var(--alert-dark)}
+</style>
+</head>
+<body>
+
+<div id="loginView">
+  <div class="login-card">
+    <div class="login-brand">Welcome</div>
+    <div class="login-sub">Money Transfer • BSA Tracking System</div>
+    <div id="loginFields">
+      <div>
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="you@company.com">
+      </div>
+      <div>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Enter password">
+      </div>
+    </div>
+    <button id="loginBtn" class="login-btn" type="button">Sign In</button>
+    <button id="forgotPasswordBtn" class="forgot-btn" type="button">Forgot your password?</button>
+    <button id="showSignupBtn" class="forgot-btn" type="button">Create a new account</button>
+    <div id="loginError" class="login-error"></div>
+    <div id="loginSuccess" class="login-success"></div>
+    <div id="resetBox" class="reset-box">
+      <label for="resetEmail">Email for password reset</label>
+      <input id="resetEmail" type="email" autocomplete="email" placeholder="Enter your email">
+      <button id="resetBtn" class="login-btn" type="button">Send Reset Email</button>
+      <button id="cancelResetBtn" class="forgot-btn" type="button">Back to Sign In</button>
+      <div id="resetMessage" class="reset-message"></div>
+    </div>
+  </div>
+</div>
+
+<div id="signupView">
+  <div class="signup-card">
+    <div class="signup-brand">Create Account</div>
+    <div class="signup-sub">Create a private workspace for your company. Each new account has its own customer and transaction records.</div>
+    <label for="signupCompany">Company Name</label>
+    <input id="signupCompany" type="text" placeholder="Company name" autocomplete="organization">
+    <label for="signupDisplayName">Your Name</label>
+    <input id="signupDisplayName" type="text" placeholder="e.g. Maria G." autocomplete="name">
+    <label for="signupEmail">Email</label>
+    <input id="signupEmail" type="email" placeholder="you@company.com" autocomplete="email">
+    <div class="two-field">
+      <div>
+        <label for="signupPassword">Password</label>
+        <input id="signupPassword" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+      </div>
+      <div>
+        <label for="signupConfirm">Confirm Password</label>
+        <input id="signupConfirm" type="password" placeholder="Confirm password" autocomplete="new-password">
+      </div>
+    </div>
+    <button id="signupBtn" class="signup-action" type="button">Create Account</button>
+    <button id="backToLoginBtn" class="forgot-btn" type="button" style="margin-top:14px">Back to Sign In</button>
+    <div id="signupError" class="signup-error"></div>
+    <div id="signupSuccess" class="signup-success"></div>
+  </div>
+</div>
+
+<header>
+  <div class="brand"><span id="headerCompanyName">Los Paisanos</span><small>Money Transfer • BSA Tracking System</small></div>
+  <div class="menuWrap">
+    <button id="moreBtn" class="moreBtn" type="button" aria-label="More options" title="More options">⋮</button>
+    <div id="moreMenu" class="moreMenu">
+      <button type="button" onclick="switchMode('entry')"><span>Transaction Entry</span></button>
+      <button type="button" onclick="switchMode('threshold')"><span>Customers $3,000+ / 30 Days</span></button>
+      <button id="profileBtn" type="button"><span>My Profile</span></button>
+      <button id="logoutBtn" class="logout-btn" type="button"><span>Log Out</span></button>
+    </div>
+  </div>
+</header>
+
+<div id="statusBanner" class="status-banner" style="display:none">
+  <span id="statusPill" class="status-pill info"></span>
+</div>
+
+<main>
+
+<div id="entryView" class="entry-view"><h2 class="title">Transaction</h2>
+
+<div class="lookupRow">
+  <div class="lookup">
+    <label>Find Customer By First Name</label>
+    <input id="search" placeholder="Search by name..." autocomplete="off">
+    <div id="results" class="results" style="display:none"></div>
+  </div>
+  <div class="hint">Existing customer: select from the list. New customer: type the name and press Enter.</div>
+</div>
+
+<div id="newBox" class="newCustomer" style="display:none">
+  <h3>New Customer</h3>
+  <p>Finish the customer information, then continue with the transaction below.</p>
+  <div class="two">
+    <div><label>First Name</label><input id="newFirst" required></div>
+    <div><label>Last Name</label><input id="newLast" required></div>
+    <div><label>Phone Number</label><input id="newPhone" required></div>
+  </div>
+  <button id="create" class="primary">✓ Create Customer &amp; Continue</button>
+</div>
+
+<div style="margin-top:10px;color:#777;font-size:12px">* First name, last name, and phone number are required. Press Enter to move to the next field.</div>
+<div class="formGrid">
+  <div><label>First Name</label><input id="first" class="readonly" readonly required></div>
+  <div><label>Last Name</label><input id="last" class="readonly" readonly required></div>
+  <div><label>Phone Number</label><input id="phone" class="readonly" readonly></div>
+  <div><label>Company Name</label><input id="company" placeholder="company" required></div>
+  <div><label>Receiver Name</label><input id="receiver" placeholder="receiver" required></div>
+  <div><label>Amount</label><input id="amount" type="number" step="0.01" min="0.01" placeholder="amount" required></div>
+  <div><label>Transaction Fee</label><input id="fee" type="number" step="0.01" min="0" placeholder="fee" required></div>
+  <div><label>Sent To Country</label><input id="country" placeholder="country" required></div>
+  <div><label>Sent Date</label><input id="date" type="date" required></div>
+</div>
+<button id="save" class="primary save">Save</button>
+
+<section class="history">
+<h3>User Transactions</h3>
+<div class="table">
+<table>
+<thead><tr><th>#</th><th>Receiver</th><th>Date</th><th>Company</th><th>Country</th><th>Amount</th><th>Fee</th><th></th></tr></thead>
+<tbody id="rows"></tbody>
+<tfoot>
+  <tr class="transactions-total">
+    <td colspan="5">TOTAL SENT</td>
+    <td id="transactionsTotal">$0.00</td>
+    <td></td>
+  </tr>
+</tfoot>
+</table>
+</div>
+</section>
+</div>
+
+<section id="thresholdView">
+<h2 class="title" style="border-bottom-color:var(--alert);color:var(--alert-dark)">Customers $3,000+ / 30 Days</h2>
+<p style="color:var(--slate);font-size:13px;margin:-10px 0 20px">Customers whose combined transactions in the trailing 30 days meet or exceed the $3,000 BSA reporting threshold.</p>
+<div class="customer-list-wrap">
+  <div class="customer-list-header">
+    <div>Customer</div>
+    <div>Phone</div>
+    <div>Transactions</div>
+    <div>30-Day Total</div>
+    <div>Last Transaction</div>
+  </div>
+  <div id="thresholdRows" class="customer-list"></div>
+</div>
+</section>
+
+<section id="reviewDetailView">
+  <div class="review-card">
+    <div class="review-top">
+      <div>
+        <h2 class="review-title" id="reviewDetailName">Customer Review</h2>
+        <p class="review-sub" id="reviewDetailContact"></p>
+      </div>
+      <button class="review-back" type="button" onclick="closeReviewDetail()">← Back to Review List</button>
+    </div>
+    <div class="review-stats">
+      <div class="review-stat"><span>30-Day Total</span><strong id="reviewDetailTotal">$0.00</strong></div>
+      <div class="review-stat"><span>Transactions</span><strong id="reviewDetailCount">0</strong></div>
+      <div class="review-stat"><span>Review Threshold</span><strong>$3,000+</strong></div>
+    </div>
+    <h3>Transactions Counted in 30 Days</h3>
+    <div style="overflow-x:auto">
+      <table class="review-table">
+        <thead><tr><th>#</th><th>Receiver</th><th>Date</th><th>Company</th><th>Country</th><th>Amount</th><th>Fee</th><th>Running Total</th></tr></thead>
+        <tbody id="reviewDetailRows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="profileView">
+  <div class="profile-card">
+    <div class="profile-top">
+      <div>
+        <h2 class="profile-title">My Profile</h2>
+        <p class="profile-sub">Your account and login information</p>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <h3>Account Information</h3>
+      <div class="profile-row">
+        <div class="profile-label">Company Name</div>
+        <div class="profile-value"><span id="profileCompanyName">—</span><button type="button" class="profile-edit-btn" data-edit="company">Edit</button></div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-label">Your Name</div>
+        <div class="profile-value"><span id="profileDisplayName">—</span><button type="button" class="profile-edit-btn" data-edit="displayName">Edit</button></div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-label">Email</div>
+        <div class="profile-value"><span id="profileEmail">—</span></div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-label">Password</div>
+        <div class="profile-value"><span>••••••••</span><button type="button" class="profile-edit-btn" data-edit="password">Edit</button></div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-label">Account Status</div>
+        <div class="profile-value">✓ Signed In</div>
+      </div>
+    </div>
+
+    <div id="profileSaveMessage" style="margin-top:10px;color:#2d6a4f;font-size:13px"></div>
+  </div>
+</section>
+
+</main>
+
+<div id="profileEditModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3 id="profileEditTitle">Edit</h3>
+    <div id="profileEditField"></div>
+    <div id="profileEditError" class="modal-error"></div>
+    <div class="modal-actions">
+      <button type="button" id="cancelProfileEdit">Cancel</button>
+      <button type="button" class="primary" id="saveProfileEdit">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="recoveryModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Set a New Password</h3>
+    <p>You followed a password reset link. Choose a new password for your account.</p>
+    <input id="recoveryNewPassword" type="password" placeholder="New password (min. 8 characters)" autocomplete="new-password">
+    <input id="recoveryConfirmPassword" type="password" placeholder="Confirm new password" autocomplete="new-password">
+    <div id="recoveryError" class="modal-error"></div>
+    <div class="modal-actions">
+      <button type="button" id="recoverySaveBtn" class="primary">Save New Password</button>
+    </div>
+  </div>
+</div>
+
+<script src="./supabase.js"></script>
+<script>
+/* ============================================================
+   Supabase project connection
+   ============================================================ */
+const SUPABASE_URL = "https://xsuskbzrieagsrwqbalk.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_0ZckEcguvXRJyGZul9wKTA_Vj6e94z1";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: { fetch: (url, options = {}) => fetch(url, {
+    ...options, signal: options.signal || AbortSignal.timeout(20000)
+  }) }
+});
+function authError(error){
+  if(/fetch|network|timeout|abort/i.test(error?.message || ""))
+    return "Unable to connect. Check your internet connection and try again.";
+  if(error?.code === "invalid_credentials") return "Incorrect email or password.";
+  if(error?.code === "email_not_confirmed") return "Confirm your email using the link in your inbox, then sign in.";
+  return error?.message || "Something went wrong. Please try again.";
+}
+async function authRequest(action, button){
+  button.disabled = true;
+  try { return await action(); }
+  catch(error) { return { data: null, error }; }
+  finally { button.disabled = false; }
+}
+
+/* ============================================================
+   Small shared helpers
+   ============================================================ */
+const $ = id => document.getElementById(id);
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g,function(ch){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch];
+  });
+}
+function moneyStr(v){
+  const n = Number(v);
+  return "$" + (Number.isFinite(n) ? n : 0).toFixed(2);
+}
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function showStatus(text, kind){
+  const banner = $("statusBanner");
+  const pill = $("statusPill");
+  if(!banner || !pill) return;
+  if(!text){ banner.style.display="none"; return; }
+  pill.textContent = text;
+  pill.className = "status-pill " + (kind || "info");
+  banner.style.display = "block";
+}
+
+/* ============================================================
+   App state
+   ============================================================ */
+let session = null;          // supabase auth session
+let profile = null;          // {id, display_name, company_name}
+let customers = [];          // company records, protected by database row-level security
+let tx = [];                 // transactions for the currently selected customer
+let selected = null;         // selected customer id
+let newMode = false;
+
+/* ============================================================
+   Auth: sign up, sign in, sign out, reset
+   ============================================================ */
+function setLoggedIn(value){
+  document.body.classList.toggle("logged-in", !!value);
+}
+
+async function loadProfileRow(userId){
+  const { data, error } = await sb.from("profiles").select("*").eq("id", userId).single();
+  if(error){ return null; }
+  return data;
+}
+
+function applyProfileToHeader(){
+  if(!profile) return;
+  const headerName = $("headerCompanyName");
+  if(headerName) headerName.textContent = profile.company_name || "Los Paisanos";
+}
+
+$("loginBtn").addEventListener("click", attemptLogin);
+["loginEmail","loginPassword"].forEach(id=>{
+  $(id).addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); attemptLogin(); } });
+});
+
+async function attemptLogin(){
+  const email = $("loginEmail").value.trim();
+  const password = $("loginPassword").value;
+  const errEl = $("loginError");
+  errEl.style.display = "none";
+  if(!email || !password){
+    errEl.textContent = "Enter your email and password.";
+    errEl.style.display = "block";
+    return;
+  }
+  const { data, error } = await authRequest(
+    () => sb.auth.signInWithPassword({ email, password }), $("loginBtn"));
+  if(error){
+    errEl.textContent = authError(error);
+    errEl.style.display = "block";
+    return;
+  }
+  session = data.session;
+  await onSignedIn();
+}
+
+$("showSignupBtn").addEventListener("click", ()=>{
+  document.body.classList.add("signup-mode");
+  $("signupError").style.display = "none";
+  $("signupSuccess").style.display = "none";
+});
+$("backToLoginBtn").addEventListener("click", ()=>{
+  document.body.classList.remove("signup-mode");
+});
+
+$("signupBtn").addEventListener("click", async ()=>{
+  const company = $("signupCompany").value.trim();
+  const displayName = $("signupDisplayName").value.trim();
+  const email = $("signupEmail").value.trim();
+  const password = $("signupPassword").value;
+  const confirm = $("signupConfirm").value;
+  const err = $("signupError");
+  const success = $("signupSuccess");
+  err.style.display = "none";
+  success.style.display = "none";
+
+  if(!company || !displayName || !email || !password || !confirm){
+    err.textContent = "Please fill in all fields.";
+    err.style.display = "block"; return;
+  }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    err.textContent = "Please enter a valid email address.";
+    err.style.display = "block"; return;
+  }
+  if(password.length < 8){
+    err.textContent = "Password must be at least 8 characters.";
+    err.style.display = "block"; return;
+  }
+  if(password !== confirm){
+    err.textContent = "Passwords do not match.";
+    err.style.display = "block"; return;
+  }
+
+  const { data, error } = await authRequest(() => sb.auth.signUp({
+    email, password,
+    options: {
+      emailRedirectTo: window.location.origin + window.location.pathname,
+      data: { display_name: displayName, company_name: company }
+    }
+  }), $("signupBtn"));
+
+  if(error){
+    err.textContent = authError(error);
+    err.style.display = "block";
+    return;
+  }
+
+  if(data.session){
+    // Email confirmation is off for this project: signed in immediately.
+    session = data.session;
+    success.textContent = "Account created. Signing you in…";
+    success.style.display = "block";
+    setTimeout(async ()=>{
+      document.body.classList.remove("signup-mode");
+      await onSignedIn();
+    }, 500);
+  }else{
+    // Email confirmation is required by this Supabase project.
+    success.textContent = "Account created — check your email to confirm it, then sign in.";
+    success.style.display = "block";
+    $("loginEmail").value = email;
+    $("signupPassword").value = "";
+    $("signupConfirm").value = "";
+  }
+});
+
+$("logoutBtn").addEventListener("click", async ()=>{
+  await sb.auth.signOut();
+  session = null; profile = null; customers = []; tx = []; selected = null;
+  $("loginEmail").value = ""; $("loginPassword").value = "";
+  // Restore the login form in case "Forgot password" left it collapsed.
+  $("resetBox").style.display = "none";
+  $("loginFields").style.display = "block";
+  $("forgotPasswordBtn").style.display = "block";
+  $("showSignupBtn").style.display = "block";
+  $("loginBtn").style.display = "block";
+  setLoggedIn(false);
+  $("moreMenu").classList.remove("open");
+});
+
+/* Forgot password */
+$("forgotPasswordBtn").addEventListener("click", ()=>{
+  $("loginFields").style.display = "none";
+  $("resetBox").style.display = "block";
+  $("forgotPasswordBtn").style.display = "none";
+  $("showSignupBtn").style.display = "none";
+  $("loginBtn").style.display = "none";
+  $("loginError").style.display = "none";
+  $("loginSuccess").style.display = "none";
+  $("resetEmail").focus();
+});
+$("cancelResetBtn").addEventListener("click", ()=>{
+  $("resetBox").style.display = "none";
+  $("loginFields").style.display = "block";
+  $("forgotPasswordBtn").style.display = "block";
+  $("showSignupBtn").style.display = "block";
+  $("loginBtn").style.display = "block";
+  $("resetMessage").textContent = "";
+});
+$("resetBtn").addEventListener("click", async ()=>{
+  const email = $("resetEmail").value.trim();
+  const msg = $("resetMessage");
+  if(!email){
+    msg.style.color = "#b3261e";
+    msg.textContent = "Please enter your email address.";
+    return;
+  }
+  const { error } = await authRequest(() => sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  }), $("resetBtn"));
+  if(error){
+    msg.style.color = "#b3261e";
+    msg.textContent = authError(error);
+    return;
+  }
+  msg.style.color = "#2d6a4f";
+  // Always show the same message whether or not the account exists —
+  // this avoids revealing which emails have accounts.
+  msg.textContent = "If that email has an account, a reset link is on its way. Check your inbox.";
+});
+
+/* Password-recovery landing: Supabase redirects back here with a
+   recovery session after the viewer clicks the emailed link. */
+sb.auth.onAuthStateChange((event, newSession)=>{
+  if(event === "SIGNED_OUT"){
+    session = null; profile = null; customers = []; tx = []; selected = null;
+    setLoggedIn(false); renderRows();
+    document.body.classList.remove("profile-mode","threshold-mode","review-detail-mode");
+  }
+  if(newSession && event === "TOKEN_REFRESHED") session = newSession;
+  if(event === "PASSWORD_RECOVERY"){
+    session = newSession;
+    $("recoveryModal").style.display = "flex";
+    $("recoveryNewPassword").value = "";
+    $("recoveryConfirmPassword").value = "";
+    $("recoveryError").style.display = "none";
+  }
+});
+$("recoverySaveBtn").addEventListener("click", async ()=>{
+  const pass = $("recoveryNewPassword").value;
+  const confirm = $("recoveryConfirmPassword").value;
+  const errEl = $("recoveryError");
+  if(pass.length < 8){
+    errEl.textContent = "Password must be at least 8 characters.";
+    errEl.style.display = "block"; return;
+  }
+  if(pass !== confirm){
+    errEl.textContent = "Passwords do not match.";
+    errEl.style.display = "block"; return;
+  }
+  $("recoverySaveBtn").disabled = true;
+  const { error } = await sb.auth.updateUser({ password: pass });
+  $("recoverySaveBtn").disabled = false;
+  if(error){
+    errEl.textContent = error.message || "Couldn't update the password.";
+    errEl.style.display = "block";
+    return;
+  }
+  $("recoveryModal").style.display = "none";
+  // Restore the login form's default visibility in case "Forgot password" was open.
+  $("resetBox").style.display = "none";
+  $("loginFields").style.display = "block";
+  $("forgotPasswordBtn").style.display = "block";
+  $("showSignupBtn").style.display = "block";
+  $("loginBtn").style.display = "block";
+  await onSignedIn();
+});
+
+/* ============================================================
+   Boot: check for an existing session on load
+   ============================================================ */
+async function boot(){
+  const { data, error } = await sb.auth.getSession();
+  if(error){
+    $("loginError").textContent = authError(error);
+    $("loginError").style.display = "block";
+    return;
+  }
+  if(data.session){
+    session = data.session;
+    await onSignedIn();
+  }
+}
+
+async function onSignedIn(){
+  profile = await loadProfileRow(session.user.id);
+  if(!profile?.company_id){
+    setLoggedIn(false);
+    $("loginError").textContent = "Your company workspace could not be loaded. Please try signing in again.";
+    $("loginError").style.display = "block";
+    return;
+  }
+  customers = []; tx = []; selected = null; newMode = false;
+  document.body.classList.remove("signup-mode");
+  setLoggedIn(true);
+  showStatus("Loading your data…", "info");
+  applyProfileToHeader();
+  const loaded = await loadCustomers();
+  render();
+  loadProfileView();
+  if(loaded) showStatus("", "info");
+}
+
+boot();
+
+/* ============================================================
+   Customers + transactions (Supabase-backed)
+   ============================================================ */
+async function loadCustomers(){
+  const { data, error } = await sb.from("customers").select("*").order("first", { ascending: true });
+  if(error){ showStatus("Couldn't load customers: " + error.message, "error"); customers = []; return false; }
+  customers = data || [];
+  return true;
+}
+
+function nextClientId(){
+  return (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+}
+
+function showCustomer(c){
+  selected = c.id; newMode = false;
+  $("newBox").style.display = "none";
+  $("results").style.display = "none";
+  $("search").value = (c.first + " " + c.last).trim();
+  $("first").value = c.first; $("last").value = c.last; $("phone").value = c.phone || ""; $("company").value = c.company || "";
+  loadTransactionsForSelected();
+  $("company").focus();
+  if(typeof $("company").select === "function") $("company").select();
+}
+
+function newCustomer(){
+  selected = null; newMode = true;
+  $("newBox").style.display = "block";
+  let p = $("search").value.trim().split(/\s+/);
+  $("newFirst").value = p[0] || ""; $("newLast").value = p.slice(1).join(" ");
+  $("first").value = $("newFirst").value; $("last").value = $("newLast").value; $("phone").value = $("newPhone").value;
+  tx = [];
+  renderRows();
+}
+
+$("search").addEventListener("input", ()=>{
+  let q = $("search").value.toLowerCase().trim(), box = $("results"); box.innerHTML = "";
+  if(!q){ box.style.display = "none"; return; }
+  customers.filter(c => (c.first+" "+c.last+" "+(c.phone||"")).toLowerCase().includes(q)).slice(0,8).forEach(c=>{
+    let b = document.createElement("button");
+    b.innerHTML = "<strong>"+escapeHtml(c.first+" "+c.last)+"</strong><small>"+escapeHtml(c.phone||"")+"</small>";
+    b.onclick = ()=>showCustomer(c);
+    box.appendChild(b);
+  });
+  box.style.display = box.children.length ? "block" : "none";
+});
+$("search").addEventListener("keydown", e=>{
+  if(e.key !== "Enter") return;
+  e.preventDefault();
+  let q = $("search").value.trim().toLowerCase();
+  let c = customers.find(x => (x.first+" "+x.last).trim().toLowerCase() === q || x.phone === q);
+  c ? showCustomer(c) : newCustomer();
+});
+$("newFirst").addEventListener("input", ()=>{ $("first").value = $("newFirst").value; });
+$("newLast").addEventListener("input", ()=>{ $("last").value = $("newLast").value; });
+
+$("create").addEventListener("click", async ()=>{
+  const fields = [["newFirst","First Name"],["newLast","Last Name"],["newPhone","Phone Number"]];
+  for(const [field,name] of fields){
+    const el = $(field);
+    if(!el.value.trim()){ alert("Please fill in " + name + "."); el.focus(); return; }
+  }
+  const first = $("newFirst").value.trim(), last = $("newLast").value.trim(), phone = $("newPhone").value.trim();
+  $("create").disabled = true;
+  const { data, error } = await sb.from("customers").insert({
+    first, last, phone, company: $("company").value.trim(),
+    created_by: session?.user?.id || null
+  }).select().single();
+  $("create").disabled = false;
+
+  if(error){ alert("Couldn't create that customer: " + error.message); return; }
+
+  customers.push(data);
+  selected = data.id; newMode = false;
+  $("newBox").style.display = "none";
+  $("search").value = (first+" "+last).trim();
+  $("first").value = first; $("last").value = last; $("phone").value = phone;
+  tx = [];
+  renderRows();
+  $("company").focus();
+  if(typeof $("company").select === "function") $("company").select();
+});
+
+if($("date")) $("date").value = todayStr();
+
+$("save").addEventListener("click", async ()=>{
+  if(newMode){ alert("Please finish the New Customer section before saving the transaction."); $("newFirst").focus(); return; }
+  if(!selected){ alert("Search for an existing customer or type a new customer's name and press Enter."); $("search").focus(); return; }
+
+  const requiredFields = [
+    ["first","First Name"],["last","Last Name"],["company","Company Name"],
+    ["country","Sent To Country"],["amount","Amount"],["fee","Transaction Fee"],
+    ["receiver","Receiver Name"],["date","Sent Date"]
+  ];
+  for(const [field,name] of requiredFields){
+    const el = $(field);
+    if(!String(el.value).trim()){ alert("Please fill in " + name + "."); el.focus(); return; }
+  }
+  if(!Number.isFinite(Number($("amount").value)) || Number($("amount").value) <= 0){ alert("Amount must be greater than 0."); $("amount").focus(); return; }
+  if(!Number.isFinite(Number($("fee").value)) || Number($("fee").value) < 0){ alert("Transaction Fee cannot be negative."); $("fee").focus(); return; }
+
+  const c = customers.find(x => x.id === selected);
+  const newCompany = $("company").value.trim();
+  $("save").disabled = true;
+  if(c && c.company !== newCompany){
+    const { error } = await sb.from("customers").update({ company: newCompany }).eq("id", c.id);
+    if(error){ $("save").disabled = false; alert("Couldn't update that customer: " + error.message); return; }
+    c.company = newCompany;
+  }
+  const { data, error } = await sb.from("transactions").insert({
+    customer_id: selected,
+    receiver: $("receiver").value.trim(),
+    date: $("date").value,
+    company: newCompany,
+    country: $("country").value.trim(),
+    amount: Number($("amount").value),
+    fee: Number($("fee").value),
+    created_by: session?.user?.id || null
+  }).select().single();
+  $("save").disabled = false;
+
+  if(error){ alert("Couldn't save that transaction: " + error.message); return; }
+
+  newMode = false;
+  $("company").value = ""; $("receiver").value = ""; $("amount").value = ""; $("fee").value = ""; $("country").value = "";
+  $("date").value = todayStr();
+  $("results").style.display = "none";
+  await loadTransactionsForSelected();
+  $("company").focus();
+});
+
+async function loadTransactionsForSelected(){
+  if(!selected){ tx = []; renderRows(); return; }
+  const { data, error } = await sb.from("transactions")
+    .select("*").eq("customer_id", selected).order("date", { ascending: false });
+  if(error){ showStatus("Couldn't load transactions: " + error.message, "error"); tx = []; }
+  else{ tx = data || []; }
+  renderRows();
+}
+
+async function deleteTransaction(t){
+  const { error } = await sb.from("transactions").delete().eq("id", t.id);
+  if(error){ alert("Couldn't delete that transaction: " + error.message); return; }
+  await loadTransactionsForSelected();
+}
+
+function updateTransactionsTotal(list){
+  const total = list.reduce((sum,t)=>sum + Number(t.amount||0), 0);
+  const el = $("transactionsTotal");
+  if(el) el.textContent = moneyStr(total);
+}
+
+function renderRows(){
+  const rowsEl = $("rows");
+  const history = document.querySelector(".history");
+  if(history) history.classList.toggle("show-history", !!selected);
+  const list = tx.slice().sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+  updateTransactionsTotal(list);
+  rowsEl.innerHTML = "";
+
+  if(!list.length){
+    const r = rowsEl.insertRow();
+    r.innerHTML = "<td colspan='8' class='empty'>No transactions found.</td>";
+    return;
+  }
+
+  list.forEach((x,i)=>{
+    const r = rowsEl.insertRow();
+    [i+1, x.receiver, x.date, x.company, x.country, Number(x.amount).toFixed(2), Number(x.fee).toFixed(2)].forEach(v=>{
+      const c = r.insertCell(); c.textContent = v;
+    });
+    const action = r.insertCell();
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "copy-btn"; copyBtn.type = "button"; copyBtn.title = "Copy transaction"; copyBtn.textContent = "Copy";
+    copyBtn.addEventListener("click", async e=>{
+      e.preventDefault(); e.stopPropagation();
+      const text = String(x.receiver||"").trim();
+      try{ if(text) await navigator.clipboard.writeText(text); }catch(err){}
+      $("receiver").value = text; $("company").focus(); $("company").select();
+      copyBtn.textContent = "Copied!"; setTimeout(()=>copyBtn.textContent="Copy", 1200);
+    });
+    action.appendChild(copyBtn);
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "delete"; delBtn.type = "button"; delBtn.title = "Delete transaction"; delBtn.textContent = "🗑";
+    delBtn.addEventListener("click", e=>{
+      e.preventDefault(); e.stopPropagation();
+      if(confirm("Permanently delete this transaction? This cannot be undone.")) deleteTransaction(x);
+    });
+    action.appendChild(delBtn);
+  });
+}
+
+function render(){ renderRows(); }
+
+/* ============================================================
+   Threshold (compliance) view
+   ============================================================ */
+function cutoffDateStr(){
+  const d = new Date(); d.setDate(d.getDate() - 29);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+async function renderThreshold(){
+  const rowsEl = $("thresholdRows");
+  if(!rowsEl) return;
+  rowsEl.innerHTML = "<div class='threshold-empty'>Loading…</div>";
+
+  const { data, error } = await sb.from("transactions").select("*").gte("date", cutoffDateStr()).lte("date", todayStr());
+  if(error){ rowsEl.innerHTML = "<div class='threshold-empty'>Couldn't load transactions.</div>"; return; }
+
+  const byCustomer = {};
+  (data||[]).forEach(t=>{
+    if(!byCustomer[t.customer_id]) byCustomer[t.customer_id] = [];
+    byCustomer[t.customer_id].push(t);
+  });
+
+  rowsEl.innerHTML = "";
+  let any = false;
+
+  customers.forEach(c=>{
+    const list = (byCustomer[c.id] || []).sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+    const total = list.reduce((s,t)=> s + Number(t.amount||0), 0);
+    if(total < 3000) return;
+    any = true;
+
+    const row = document.createElement("div");
+    row.className = "customer-row";
+    row.innerHTML =
+      '<div class="customer-name"><button class="customer-open" type="button">'+escapeHtml(c.first+" "+c.last)+'</button></div>'+
+      '<div class="customer-phone">'+escapeHtml(c.phone||"—")+'</div>'+
+      '<div class="customer-count">'+list.length+'</div>'+
+      '<div class="customer-total">'+moneyStr(total)+'</div>'+
+      '<div class="customer-last">'+escapeHtml(list[0]?.date||"—")+'</div>';
+    row.querySelector(".customer-open").addEventListener("click", ()=> openReviewDetail(c.id, list, total));
+    rowsEl.appendChild(row);
+  });
+
+  if(!any){
+    rowsEl.innerHTML = '<div class="threshold-empty">No customers have sent $3,000 or more in the last 30 days.</div>';
+  }
+}
+
+function openReviewDetail(cid, list, total){
+  const c = customers.find(x => String(x.id) === String(cid));
+  if(!c) return;
+  const sorted = list.slice().sort((a,b)=> String(a.date).localeCompare(String(b.date)));
+
+  $("reviewDetailName").textContent = (c.first+" "+c.last).trim();
+  $("reviewDetailContact").textContent = c.phone || "";
+  $("reviewDetailTotal").textContent = moneyStr(total);
+  $("reviewDetailCount").textContent = list.length;
+
+  let running = 0;
+  const body = $("reviewDetailRows");
+  body.innerHTML = "";
+  sorted.forEach((t,i)=>{
+    running += Number(t.amount||0);
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td>"+(i+1)+"</td>"+
+      "<td>"+escapeHtml(t.receiver||"")+"</td>"+
+      "<td>"+escapeHtml(t.date||"")+"</td>"+
+      "<td>"+escapeHtml(t.company||"")+"</td>"+
+      "<td>"+escapeHtml(t.country||"")+"</td>"+
+      "<td>"+moneyStr(t.amount)+"</td>"+
+      "<td>"+moneyStr(t.fee)+"</td>"+
+      "<td class='review-running'>"+moneyStr(running)+"</td>";
+    body.appendChild(tr);
+  });
+  if(!sorted.length){ body.innerHTML = "<tr><td colspan='8'>No transactions in the last 30 days.</td></tr>"; }
+
+  document.body.classList.add("review-detail-mode");
+  window.scrollTo(0,0);
+}
+window.closeReviewDetail = function(){
+  document.body.classList.remove("review-detail-mode");
+  switchMode("threshold");
+};
+
+/* ============================================================
+   View switching + header menu
+   ============================================================ */
+window.switchMode = function(mode){
+  document.body.classList.remove("review-detail-mode","profile-mode");
+  $("moreMenu").classList.remove("open");
+  if(mode === "threshold"){
+    document.body.classList.add("threshold-mode");
+    renderThreshold();
+  }else{
+    document.body.classList.remove("threshold-mode");
+  }
+};
+$("moreBtn").addEventListener("click", ()=> $("moreMenu").classList.toggle("open"));
+document.addEventListener("click", e=>{
+  if(!$("moreMenu").contains(e.target) && e.target !== $("moreBtn")){
+    $("moreMenu").classList.remove("open");
+  }
+});
+
+/* Enter moves to the next visible input, same as before */
+document.addEventListener("keydown", e=>{
+  if(e.key !== "Enter" || e.ctrlKey || e.altKey || e.metaKey) return;
+  const active = e.target;
+  if(!active || active.tagName !== "INPUT") return;
+  if(active.id === "search") return;
+  if(active.readOnly) return;
+  e.preventDefault();
+  const visibleInputs = [...document.querySelectorAll("input")].filter(el => el.offsetParent !== null && !el.disabled && !el.readOnly);
+  const index = visibleInputs.indexOf(active);
+  if(index < 0) return;
+  const next = visibleInputs[index+1];
+  if(next){ next.focus(); if(typeof next.select === "function" && next.type !== "date") next.select(); }
+  else{ if(newMode) $("create").focus(); else $("save").focus(); }
+});
+
+/* ============================================================
+   Profile view + edit modal
+   ============================================================ */
+function loadProfileView(){
+  if(!profile) return;
+  $("profileCompanyName").textContent = profile.company_name || "—";
+  $("profileDisplayName").textContent = profile.display_name || "—";
+  $("profileEmail").textContent = session?.user?.email || "—";
+}
+$("profileBtn").addEventListener("click", ()=>{
+  document.body.classList.remove("threshold-mode","review-detail-mode");
+  document.body.classList.add("profile-mode");
+  $("moreMenu").classList.remove("open");
+  loadProfileView();
+});
+
+let editingField = null;
+document.querySelectorAll(".profile-edit-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    editingField = btn.getAttribute("data-edit");
+    const title = $("profileEditTitle");
+    const field = $("profileEditField");
+    field.innerHTML = "";
+    $("profileEditError").style.display = "none";
+
+    if(editingField === "company"){
+      title.textContent = "Edit Company Name";
+      field.innerHTML = '<label>Company Name</label><input id="profileEditInput" value="'+escapeHtml(profile.company_name||"")+'">';
+    }else if(editingField === "displayName"){
+      title.textContent = "Edit Your Name";
+      field.innerHTML = '<label>Your Name</label><input id="profileEditInput" value="'+escapeHtml(profile.display_name||"")+'">';
+    }else if(editingField === "password"){
+      title.textContent = "Change Password";
+      field.innerHTML = '<label>New Password</label><input id="profileEditInput" type="password" placeholder="At least 8 characters">';
+    }
+    $("profileEditModal").style.display = "flex";
+    setTimeout(()=>{ const el = $("profileEditInput"); if(el){ el.focus(); if(el.select) el.select(); } }, 0);
+  });
+});
+$("cancelProfileEdit").addEventListener("click", ()=>{ $("profileEditModal").style.display = "none"; });
+
+$("saveProfileEdit").addEventListener("click", async ()=>{
+  const input = $("profileEditInput");
+  const errorEl = $("profileEditError");
+  const value = input ? input.value.trim() : "";
+  errorEl.style.display = "none";
+
+  if(!value){ errorEl.textContent = "Please enter a value."; errorEl.style.display = "block"; return; }
+
+  if(editingField === "password" && value.length < 8){
+    errorEl.textContent = "Password must be at least 8 characters.";
+    errorEl.style.display = "block"; return;
+  }
+
+  $("saveProfileEdit").disabled = true;
+
+  if(editingField === "company" || editingField === "displayName"){
+    const patch = editingField === "company" ? { company_name: value } : { display_name: value };
+    const { error } = await sb.from("profiles").update(patch).eq("id", profile.id);
+    if(error){
+      errorEl.textContent = error.message; errorEl.style.display = "block";
+      $("saveProfileEdit").disabled = false; return;
+    }
+    profile = { ...profile, ...patch };
+    applyProfileToHeader();
+  }else if(editingField === "password"){
+    const { error } = await sb.auth.updateUser({ password: value });
+    if(error){
+      errorEl.textContent = error.message; errorEl.style.display = "block";
+      $("saveProfileEdit").disabled = false; return;
+    }
+  }
+
+  $("saveProfileEdit").disabled = false;
+  $("profileEditModal").style.display = "none";
+  loadProfileView();
+  const msg = $("profileSaveMessage");
+  msg.textContent = "Saved.";
+  setTimeout(()=>{ msg.textContent = ""; }, 2000);
+});
+</script>
+</body>
+</html>
