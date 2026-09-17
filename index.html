@@ -247,7 +247,7 @@ body.profile-mode .history{display:none !important}
 <div id="signupView">
   <div class="signup-card">
     <div class="signup-brand">Create Account</div>
-    <div class="signup-sub">Los Paisanos • Money Transfer • BSA Tracking System</div>
+    <div class="signup-sub">Create a private workspace for your company. Each new account has its own customer and transaction records.</div>
     <label for="signupCompany">Company Name</label>
     <input id="signupCompany" type="text" placeholder="Company name" autocomplete="organization">
     <label for="signupDisplayName">Your Name</label>
@@ -447,14 +447,31 @@ body.profile-mode .history{display:none !important}
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase.js"></script>
 <script>
 /* ============================================================
    Supabase project connection
    ============================================================ */
 const SUPABASE_URL = "https://xsuskbzrieagsrwqbalk.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_0ZckEcguvXRJyGZul9wKTA_Vj6e94z1";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: { fetch: (url, options = {}) => fetch(url, {
+    ...options, signal: options.signal || AbortSignal.timeout(20000)
+  }) }
+});
+function authError(error){
+  if(/fetch|network|timeout|abort/i.test(error?.message || ""))
+    return "Unable to connect. Check your internet connection and try again.";
+  if(error?.code === "invalid_credentials") return "Incorrect email or password.";
+  if(error?.code === "email_not_confirmed") return "Confirm your email using the link in your inbox, then sign in.";
+  return error?.message || "Something went wrong. Please try again.";
+}
+async function authRequest(action, button){
+  button.disabled = true;
+  try { return await action(); }
+  catch(error) { return { data: null, error }; }
+  finally { button.disabled = false; }
+}
 
 /* ============================================================
    Small shared helpers
@@ -469,7 +486,10 @@ function moneyStr(v){
   const n = Number(v);
   return "$" + (Number.isFinite(n) ? n : 0).toFixed(2);
 }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
 
 function showStatus(text, kind){
   const banner = $("statusBanner");
@@ -486,23 +506,10 @@ function showStatus(text, kind){
    ============================================================ */
 let session = null;          // supabase auth session
 let profile = null;          // {id, display_name, company_name}
-let customers = [];          // all customers (shared, from Supabase)
+let customers = [];          // company records, protected by database row-level security
 let tx = [];                 // transactions for the currently selected customer
 let selected = null;         // selected customer id
 let newMode = false;
-
-/* ============================================================
-   Audit log
-   ============================================================ */
-async function logAudit(action, entityType, entityId, summary){
-  try{
-    await sb.from("audit_log").insert({
-      action, entity_type: entityType, entity_id: entityId, summary,
-      user_id: session?.user?.id || null,
-      user_email: session?.user?.email || null
-    });
-  }catch(e){ /* audit logging failure should never block the actual action */ }
-}
 
 /* ============================================================
    Auth: sign up, sign in, sign out, reset
@@ -538,11 +545,10 @@ async function attemptLogin(){
     errEl.style.display = "block";
     return;
   }
-  $("loginBtn").disabled = true;
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  $("loginBtn").disabled = false;
+  const { data, error } = await authRequest(
+    () => sb.auth.signInWithPassword({ email, password }), $("loginBtn"));
   if(error){
-    errEl.textContent = "Incorrect email or password.";
+    errEl.textContent = authError(error);
     errEl.style.display = "block";
     return;
   }
@@ -587,15 +593,16 @@ $("signupBtn").addEventListener("click", async ()=>{
     err.style.display = "block"; return;
   }
 
-  $("signupBtn").disabled = true;
-  const { data, error } = await sb.auth.signUp({
+  const { data, error } = await authRequest(() => sb.auth.signUp({
     email, password,
-    options: { data: { display_name: displayName, company_name: company } }
-  });
-  $("signupBtn").disabled = false;
+    options: {
+      emailRedirectTo: window.location.origin + window.location.pathname,
+      data: { display_name: displayName, company_name: company }
+    }
+  }), $("signupBtn"));
 
   if(error){
-    err.textContent = error.message || "Couldn't create that account.";
+    err.textContent = authError(error);
     err.style.display = "block";
     return;
   }
@@ -613,10 +620,9 @@ $("signupBtn").addEventListener("click", async ()=>{
     // Email confirmation is required by this Supabase project.
     success.textContent = "Account created — check your email to confirm it, then sign in.";
     success.style.display = "block";
-    setTimeout(()=>{
-      document.body.classList.remove("signup-mode");
-      $("loginEmail").value = email;
-    }, 1200);
+    $("loginEmail").value = email;
+    $("signupPassword").value = "";
+    $("signupConfirm").value = "";
   }
 });
 
@@ -661,11 +667,14 @@ $("resetBtn").addEventListener("click", async ()=>{
     msg.textContent = "Please enter your email address.";
     return;
   }
-  $("resetBtn").disabled = true;
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
+  const { error } = await authRequest(() => sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + window.location.pathname
-  });
-  $("resetBtn").disabled = false;
+  }), $("resetBtn"));
+  if(error){
+    msg.style.color = "#b3261e";
+    msg.textContent = authError(error);
+    return;
+  }
   msg.style.color = "#2d6a4f";
   // Always show the same message whether or not the account exists —
   // this avoids revealing which emails have accounts.
@@ -675,6 +684,12 @@ $("resetBtn").addEventListener("click", async ()=>{
 /* Password-recovery landing: Supabase redirects back here with a
    recovery session after the viewer clicks the emailed link. */
 sb.auth.onAuthStateChange((event, newSession)=>{
+  if(event === "SIGNED_OUT"){
+    session = null; profile = null; customers = []; tx = []; selected = null;
+    setLoggedIn(false); renderRows();
+    document.body.classList.remove("profile-mode","threshold-mode","review-detail-mode");
+  }
+  if(newSession && event === "TOKEN_REFRESHED") session = newSession;
   if(event === "PASSWORD_RECOVERY"){
     session = newSession;
     $("recoveryModal").style.display = "flex";
@@ -717,7 +732,12 @@ $("recoverySaveBtn").addEventListener("click", async ()=>{
    Boot: check for an existing session on load
    ============================================================ */
 async function boot(){
-  const { data } = await sb.auth.getSession();
+  const { data, error } = await sb.auth.getSession();
+  if(error){
+    $("loginError").textContent = authError(error);
+    $("loginError").style.display = "block";
+    return;
+  }
   if(data.session){
     session = data.session;
     await onSignedIn();
@@ -725,18 +745,22 @@ async function boot(){
 }
 
 async function onSignedIn(){
+  profile = await loadProfileRow(session.user.id);
+  if(!profile?.company_id){
+    setLoggedIn(false);
+    $("loginError").textContent = "Your company workspace could not be loaded. Please try signing in again.";
+    $("loginError").style.display = "block";
+    return;
+  }
+  customers = []; tx = []; selected = null; newMode = false;
+  document.body.classList.remove("signup-mode");
   setLoggedIn(true);
   showStatus("Loading your data…", "info");
-  profile = await loadProfileRow(session.user.id);
-  if(!profile){
-    // Trigger hasn't run yet (rare race) — fall back gracefully.
-    profile = { id: session.user.id, display_name: session.user.email, company_name: "Los Paisanos" };
-  }
   applyProfileToHeader();
-  await loadCustomers();
+  const loaded = await loadCustomers();
   render();
   loadProfileView();
-  showStatus("", "info");
+  if(loaded) showStatus("", "info");
 }
 
 boot();
@@ -746,8 +770,9 @@ boot();
    ============================================================ */
 async function loadCustomers(){
   const { data, error } = await sb.from("customers").select("*").order("first", { ascending: true });
-  if(error){ showStatus("Couldn't load customers: " + error.message, "error"); customers = []; return; }
+  if(error){ showStatus("Couldn't load customers: " + error.message, "error"); customers = []; return false; }
   customers = data || [];
+  return true;
 }
 
 function nextClientId(){
@@ -819,7 +844,6 @@ $("create").addEventListener("click", async ()=>{
   $("first").value = first; $("last").value = last; $("phone").value = phone;
   tx = [];
   renderRows();
-  await logAudit("customer_created", "customer", data.id, first+" "+last);
   $("company").focus();
   if(typeof $("company").select === "function") $("company").select();
 });
@@ -839,17 +863,17 @@ $("save").addEventListener("click", async ()=>{
     const el = $(field);
     if(!String(el.value).trim()){ alert("Please fill in " + name + "."); el.focus(); return; }
   }
-  if(Number($("amount").value) <= 0){ alert("Amount must be greater than 0."); $("amount").focus(); return; }
-  if(Number($("fee").value) < 0){ alert("Transaction Fee cannot be negative."); $("fee").focus(); return; }
+  if(!Number.isFinite(Number($("amount").value)) || Number($("amount").value) <= 0){ alert("Amount must be greater than 0."); $("amount").focus(); return; }
+  if(!Number.isFinite(Number($("fee").value)) || Number($("fee").value) < 0){ alert("Transaction Fee cannot be negative."); $("fee").focus(); return; }
 
   const c = customers.find(x => x.id === selected);
   const newCompany = $("company").value.trim();
-  if(c && c.company !== newCompany){
-    c.company = newCompany;
-    await sb.from("customers").update({ company: newCompany }).eq("id", c.id);
-  }
-
   $("save").disabled = true;
+  if(c && c.company !== newCompany){
+    const { error } = await sb.from("customers").update({ company: newCompany }).eq("id", c.id);
+    if(error){ $("save").disabled = false; alert("Couldn't update that customer: " + error.message); return; }
+    c.company = newCompany;
+  }
   const { data, error } = await sb.from("transactions").insert({
     customer_id: selected,
     receiver: $("receiver").value.trim(),
@@ -863,9 +887,6 @@ $("save").addEventListener("click", async ()=>{
   $("save").disabled = false;
 
   if(error){ alert("Couldn't save that transaction: " + error.message); return; }
-
-  await logAudit("transaction_created", "transaction", data.id,
-    (c ? (c.first+" "+c.last) : "") + " — " + moneyStr(data.amount) + " to " + data.country);
 
   newMode = false;
   $("company").value = ""; $("receiver").value = ""; $("amount").value = ""; $("fee").value = ""; $("country").value = "";
@@ -887,8 +908,6 @@ async function loadTransactionsForSelected(){
 async function deleteTransaction(t){
   const { error } = await sb.from("transactions").delete().eq("id", t.id);
   if(error){ alert("Couldn't delete that transaction: " + error.message); return; }
-  await logAudit("transaction_deleted", "transaction", t.id,
-    (t.receiver||"") + " — " + moneyStr(t.amount));
   await loadTransactionsForSelected();
 }
 
@@ -933,7 +952,7 @@ function renderRows(){
     delBtn.className = "delete"; delBtn.type = "button"; delBtn.title = "Delete transaction"; delBtn.textContent = "🗑";
     delBtn.addEventListener("click", e=>{
       e.preventDefault(); e.stopPropagation();
-      deleteTransaction(x);
+      if(confirm("Permanently delete this transaction? This cannot be undone.")) deleteTransaction(x);
     });
     action.appendChild(delBtn);
   });
@@ -945,8 +964,8 @@ function render(){ renderRows(); }
    Threshold (compliance) view
    ============================================================ */
 function cutoffDateStr(){
-  const d = new Date(); d.setUTCDate(d.getUTCDate() - 30);
-  return d.toISOString().slice(0,10);
+  const d = new Date(); d.setDate(d.getDate() - 29);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
 async function renderThreshold(){
@@ -954,7 +973,7 @@ async function renderThreshold(){
   if(!rowsEl) return;
   rowsEl.innerHTML = "<div class='threshold-empty'>Loading…</div>";
 
-  const { data, error } = await sb.from("transactions").select("*").gte("date", cutoffDateStr());
+  const { data, error } = await sb.from("transactions").select("*").gte("date", cutoffDateStr()).lte("date", todayStr());
   if(error){ rowsEl.innerHTML = "<div class='threshold-empty'>Couldn't load transactions.</div>"; return; }
 
   const byCustomer = {};
@@ -1126,14 +1145,12 @@ $("saveProfileEdit").addEventListener("click", async ()=>{
     }
     profile = { ...profile, ...patch };
     applyProfileToHeader();
-    await logAudit("profile_updated", "profile", profile.id, editingField + " changed");
   }else if(editingField === "password"){
     const { error } = await sb.auth.updateUser({ password: value });
     if(error){
       errorEl.textContent = error.message; errorEl.style.display = "block";
       $("saveProfileEdit").disabled = false; return;
     }
-    await logAudit("password_changed", "profile", profile.id, "Password changed");
   }
 
   $("saveProfileEdit").disabled = false;
