@@ -191,6 +191,7 @@ body.profile-mode .history{display:none !important}
 @media(max-width:600px){.profile-row{grid-template-columns:1fr;gap:4px}.profile-top{flex-direction:column}}
 .profile-value input{width:min(420px,100%);box-sizing:border-box;border:1px solid #C9D2D8;border-radius:4px;padding:8px 10px;font-size:13px;font-family:var(--font)}
 .profile-edit-btn{margin-left:10px;border:0;background:none;color:var(--teal-dark);font-weight:600;cursor:pointer;padding:2px 4px;font-size:12.5px;font-family:var(--font)}
+.mfa-btn{margin-left:10px;border:0;background:none;color:var(--teal-dark);font-weight:600;cursor:pointer;padding:2px 4px;font-size:12.5px;font-family:var(--font)}
 .profile-edit-btn:hover{text-decoration:underline}
 
 /* ============ Modals ============ */
@@ -278,6 +279,7 @@ body.profile-mode .history{display:none !important}
     <div id="moreMenu" class="moreMenu">
       <button type="button" onclick="switchMode('entry')"><span>Transaction Entry</span></button>
       <button type="button" onclick="switchMode('threshold')"><span>Customers $3,000+ / 30 Days</span></button>
+      <button id="exportCsvBtn" type="button"><span>Export Transactions (CSV)</span></button>
       <button id="profileBtn" type="button"><span>My Profile</span></button>
       <button id="logoutBtn" class="logout-btn" type="button"><span>Log Out</span></button>
     </div>
@@ -411,6 +413,14 @@ body.profile-mode .history{display:none !important}
         <div class="profile-value"><span>••••••••</span><button type="button" class="profile-edit-btn" data-edit="password">Edit</button></div>
       </div>
       <div class="profile-row">
+        <div class="profile-label">Two-Factor Authentication</div>
+        <div class="profile-value">
+          <span id="mfaStatusText">—</span>
+          <button type="button" id="mfaEnableBtn" class="mfa-btn" style="display:none">Enable</button>
+          <button type="button" id="mfaDisableBtn" class="mfa-btn" style="display:none;color:var(--alert)">Disable</button>
+        </div>
+      </div>
+      <div class="profile-row">
         <div class="profile-label">Account Status</div>
         <div class="profile-value">✓ Signed In</div>
       </div>
@@ -443,6 +453,36 @@ body.profile-mode .history{display:none !important}
     <div id="recoveryError" class="modal-error"></div>
     <div class="modal-actions">
       <button type="button" id="recoverySaveBtn" class="primary">Save New Password</button>
+    </div>
+  </div>
+</div>
+
+<div id="mfaEnrollModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Set Up Two-Factor Authentication</h3>
+    <p>Scan this QR code with an authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code it shows.</p>
+    <div style="text-align:center;margin-bottom:12px">
+      <img id="mfaQrImage" alt="2FA QR code" style="width:180px;height:180px;border:1px solid var(--line);border-radius:4px">
+    </div>
+    <p style="font-size:11.5px;color:var(--slate-light);text-align:center;word-break:break-all;margin-bottom:14px">Can't scan? Enter this code manually: <span id="mfaSecretText" style="font-family:monospace"></span></p>
+    <input id="mfaEnrollCode" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code">
+    <div id="mfaEnrollError" class="modal-error"></div>
+    <div class="modal-actions">
+      <button type="button" id="mfaEnrollCancelBtn">Cancel</button>
+      <button type="button" class="primary" id="mfaEnrollVerifyBtn">Verify &amp; Enable</button>
+    </div>
+  </div>
+</div>
+
+<div id="mfaChallengeModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Two-Factor Verification</h3>
+    <p>Enter the 6-digit code from your authenticator app to finish signing in.</p>
+    <input id="mfaChallengeCode" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code">
+    <div id="mfaChallengeError" class="modal-error"></div>
+    <div class="modal-actions">
+      <button type="button" id="mfaChallengeCancelBtn">Cancel</button>
+      <button type="button" class="primary" id="mfaChallengeVerifyBtn">Verify</button>
     </div>
   </div>
 </div>
@@ -553,6 +593,10 @@ async function attemptLogin(){
     return;
   }
   session = data.session;
+  if(await needsMfaChallenge()){
+    await startMfaChallenge();
+    return;
+  }
   await onSignedIn();
 }
 
@@ -740,9 +784,150 @@ async function boot(){
   }
   if(data.session){
     session = data.session;
+    if(await needsMfaChallenge()){
+      await startMfaChallenge();
+      return;
+    }
     await onSignedIn();
   }
 }
+
+/* ============================================================
+   Two-factor authentication (TOTP, via Supabase Auth MFA)
+   ============================================================ */
+let mfaEnrollFactorId = null;
+let mfaChallengeFactorId = null;
+let mfaChallengeId = null;
+
+async function needsMfaChallenge(){
+  const { data, error } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(error) return false;
+  return data.currentLevel === "aal1" && data.nextLevel === "aal2";
+}
+
+async function startMfaChallenge(){
+  const { data, error } = await sb.auth.mfa.listFactors();
+  if(error || !data.totp || !data.totp.length){
+    // Shouldn't happen, but fail safe rather than get stuck.
+    await sb.auth.signOut();
+    setLoggedIn(false);
+    return;
+  }
+  mfaChallengeFactorId = data.totp[0].id;
+  const { data: challenge, error: challengeError } = await sb.auth.mfa.challenge({ factorId: mfaChallengeFactorId });
+  if(challengeError){
+    alert("Couldn't start two-factor verification: " + challengeError.message);
+    await sb.auth.signOut();
+    setLoggedIn(false);
+    return;
+  }
+  mfaChallengeId = challenge.id;
+  $("mfaChallengeCode").value = "";
+  $("mfaChallengeError").style.display = "none";
+  $("mfaChallengeModal").style.display = "flex";
+  $("mfaChallengeCode").focus();
+}
+
+$("mfaChallengeVerifyBtn").addEventListener("click", async ()=>{
+  const code = $("mfaChallengeCode").value.trim();
+  const errEl = $("mfaChallengeError");
+  if(!/^\d{6}$/.test(code)){
+    errEl.textContent = "Enter the 6-digit code from your authenticator app.";
+    errEl.style.display = "block"; return;
+  }
+  $("mfaChallengeVerifyBtn").disabled = true;
+  const { data, error } = await sb.auth.mfa.verify({
+    factorId: mfaChallengeFactorId, challengeId: mfaChallengeId, code
+  });
+  $("mfaChallengeVerifyBtn").disabled = false;
+  if(error){
+    errEl.textContent = "Incorrect code. Try again.";
+    errEl.style.display = "block";
+    return;
+  }
+  session = data.session;
+  $("mfaChallengeModal").style.display = "none";
+  await onSignedIn();
+});
+$("mfaChallengeCancelBtn").addEventListener("click", async ()=>{
+  $("mfaChallengeModal").style.display = "none";
+  await sb.auth.signOut();
+  session = null;
+  setLoggedIn(false);
+});
+["mfaChallengeCode"].forEach(id=>{
+  $(id).addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("mfaChallengeVerifyBtn").click(); } });
+});
+
+async function loadMfaStatus(){
+  const { data, error } = await sb.auth.mfa.listFactors();
+  const enrolled = !error && data.totp && data.totp.length > 0;
+  $("mfaStatusText").textContent = enrolled ? "Enabled" : "Not enabled";
+  $("mfaEnableBtn").style.display = enrolled ? "none" : "inline-block";
+  $("mfaDisableBtn").style.display = enrolled ? "inline-block" : "none";
+  window.__currentMfaFactorId = enrolled ? data.totp[0].id : null;
+}
+
+$("mfaEnableBtn").addEventListener("click", async ()=>{
+  $("mfaEnableBtn").disabled = true;
+  const { data, error } = await sb.auth.mfa.enroll({ factorType: "totp" });
+  $("mfaEnableBtn").disabled = false;
+  if(error){ alert("Couldn't start two-factor setup: " + error.message); return; }
+  mfaEnrollFactorId = data.id;
+  $("mfaQrImage").src = data.totp.qr_code;
+  $("mfaSecretText").textContent = data.totp.secret;
+  $("mfaEnrollCode").value = "";
+  $("mfaEnrollError").style.display = "none";
+  $("mfaEnrollModal").style.display = "flex";
+});
+
+$("mfaEnrollVerifyBtn").addEventListener("click", async ()=>{
+  const code = $("mfaEnrollCode").value.trim();
+  const errEl = $("mfaEnrollError");
+  if(!/^\d{6}$/.test(code)){
+    errEl.textContent = "Enter the 6-digit code from your authenticator app.";
+    errEl.style.display = "block"; return;
+  }
+  $("mfaEnrollVerifyBtn").disabled = true;
+  const { data: challenge, error: challengeError } = await sb.auth.mfa.challenge({ factorId: mfaEnrollFactorId });
+  if(challengeError){
+    $("mfaEnrollVerifyBtn").disabled = false;
+    errEl.textContent = challengeError.message; errEl.style.display = "block"; return;
+  }
+  const { error } = await sb.auth.mfa.verify({ factorId: mfaEnrollFactorId, challengeId: challenge.id, code });
+  $("mfaEnrollVerifyBtn").disabled = false;
+  if(error){
+    errEl.textContent = "Incorrect code. Try again.";
+    errEl.style.display = "block";
+    return;
+  }
+  $("mfaEnrollModal").style.display = "none";
+  await loadMfaStatus();
+  const msg = $("profileSaveMessage");
+  msg.textContent = "Two-factor authentication enabled.";
+  setTimeout(()=>{ msg.textContent = ""; }, 3000);
+});
+$("mfaEnrollCancelBtn").addEventListener("click", async ()=>{
+  if(mfaEnrollFactorId){ await sb.auth.mfa.unenroll({ factorId: mfaEnrollFactorId }); mfaEnrollFactorId = null; }
+  $("mfaEnrollModal").style.display = "none";
+});
+["mfaEnrollCode"].forEach(id=>{
+  $(id).addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("mfaEnrollVerifyBtn").click(); } });
+});
+
+$("mfaDisableBtn").addEventListener("click", async ()=>{
+  if(!confirm("Turn off two-factor authentication? This makes your account easier to access with just a password.")) return;
+  const factorId = window.__currentMfaFactorId;
+  if(!factorId) return;
+  $("mfaDisableBtn").disabled = true;
+  const { error } = await sb.auth.mfa.unenroll({ factorId });
+  $("mfaDisableBtn").disabled = false;
+  if(error){ alert("Couldn't disable two-factor authentication: " + error.message); return; }
+  await loadMfaStatus();
+  const msg = $("profileSaveMessage");
+  msg.textContent = "Two-factor authentication disabled.";
+  setTimeout(()=>{ msg.textContent = ""; }, 3000);
+});
 
 async function onSignedIn(){
   profile = await loadProfileRow(session.user.id);
@@ -1057,6 +1242,62 @@ window.switchMode = function(mode){
     document.body.classList.remove("threshold-mode");
   }
 };
+/* ============================================================
+   CSV export (all company transactions)
+   ============================================================ */
+function csvField(v){
+  const s = String(v ?? "");
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+async function exportAllTransactionsCsv(){
+  const btn = $("exportCsvBtn");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Exporting…";
+
+  const { data, error } = await sb.from("transactions").select("*").order("date", { ascending: false });
+
+  btn.disabled = false;
+  btn.textContent = originalText;
+  $("moreMenu").classList.remove("open");
+
+  if(error){
+    alert("Couldn't export transactions: " + error.message);
+    return;
+  }
+  if(!data || !data.length){
+    alert("There are no transactions to export yet.");
+    return;
+  }
+
+  const customerById = {};
+  customers.forEach(c => { customerById[c.id] = (c.first + " " + c.last).trim(); });
+
+  const header = ["Date","Customer","Receiver","Company","Country","Amount","Fee"];
+  const rows = data.map(t => [
+    t.date,
+    customerById[t.customer_id] || "",
+    t.receiver || "",
+    t.company || "",
+    t.country || "",
+    Number(t.amount || 0).toFixed(2),
+    Number(t.fee || 0).toFixed(2)
+  ]);
+
+  const csv = [header, ...rows].map(row => row.map(csvField).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "transactions-" + todayStr() + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+$("exportCsvBtn").addEventListener("click", exportAllTransactionsCsv);
+
 $("moreBtn").addEventListener("click", ()=> $("moreMenu").classList.toggle("open"));
 document.addEventListener("click", e=>{
   if(!$("moreMenu").contains(e.target) && e.target !== $("moreBtn")){
@@ -1088,6 +1329,7 @@ function loadProfileView(){
   $("profileCompanyName").textContent = profile.company_name || "—";
   $("profileDisplayName").textContent = profile.display_name || "—";
   $("profileEmail").textContent = session?.user?.email || "—";
+  loadMfaStatus();
 }
 $("profileBtn").addEventListener("click", ()=>{
   document.body.classList.remove("threshold-mode","review-detail-mode");
