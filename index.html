@@ -368,7 +368,10 @@ body.profile-mode .history{display:none !important}
         <h2 class="review-title" id="reviewDetailName">Customer Review</h2>
         <p class="review-sub" id="reviewDetailContact"></p>
       </div>
-      <button class="review-back" type="button" onclick="closeReviewDetail()">← Back to Review List</button>
+      <div style="display:flex;gap:10px">
+        <button class="review-back" type="button" id="reviewExportBtn">Export CSV</button>
+        <button class="review-back" type="button" onclick="closeReviewDetail()">← Back to Review List</button>
+      </div>
     </div>
     <div class="review-stats">
       <div class="review-stat"><span>30-Day Total</span><strong id="reviewDetailTotal">$0.00</strong></div>
@@ -1197,6 +1200,7 @@ function openReviewDetail(cid, list, total){
   const c = customers.find(x => String(x.id) === String(cid));
   if(!c) return;
   const sorted = list.slice().sort((a,b)=> String(a.date).localeCompare(String(b.date)));
+  currentReviewExport = { customerName: (c.first+" "+c.last).trim(), rows: sorted };
 
   $("reviewDetailName").textContent = (c.first+" "+c.last).trim();
   $("reviewDetailContact").textContent = c.phone || "";
@@ -1297,6 +1301,30 @@ async function exportAllTransactionsCsv(){
   URL.revokeObjectURL(url);
 }
 $("exportCsvBtn").addEventListener("click", exportAllTransactionsCsv);
+
+let currentReviewExport = null;
+$("reviewExportBtn").addEventListener("click", ()=>{
+  if(!currentReviewExport || !currentReviewExport.rows.length){
+    alert("There are no transactions to export for this customer.");
+    return;
+  }
+  const header = ["Date","Receiver","Company","Country","Amount","Fee"];
+  const rows = currentReviewExport.rows.map(t => [
+    t.date, t.receiver || "", t.company || "", t.country || "",
+    Number(t.amount || 0).toFixed(2), Number(t.fee || 0).toFixed(2)
+  ]);
+  const csv = [header, ...rows].map(row => row.map(csvField).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const safeName = currentReviewExport.customerName.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = safeName + "-" + todayStr() + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
 
 $("moreBtn").addEventListener("click", ()=> $("moreMenu").classList.toggle("open"));
 document.addEventListener("click", e=>{
