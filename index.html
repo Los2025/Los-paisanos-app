@@ -1042,8 +1042,6 @@ $("create").addEventListener("click", async ()=>{
   if(typeof $("company").select === "function") $("company").select();
 });
 
-if($("date")) $("date").value = todayStr();
-
 $("save").addEventListener("click", async ()=>{
   if(newMode){ alert("Please finish the New Customer section before saving the transaction."); $("newFirst").focus(); return; }
   if(!selected){ alert("Search for an existing customer or type a new customer's name and press Enter."); $("search").focus(); return; }
@@ -1086,7 +1084,7 @@ $("save").addEventListener("click", async ()=>{
 
   newMode = false;
   $("company").value = ""; $("transactionNumber").value = ""; $("receiver").value = ""; $("amount").value = ""; $("fee").value = ""; $("country").value = "";
-  $("date").value = todayStr();
+  $("date").value = "";
   $("results").style.display = "none";
   await loadTransactionsForSelected();
   $("company").focus();
