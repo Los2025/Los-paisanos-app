@@ -320,6 +320,7 @@ body.profile-mode .history{display:none !important}
   <div><label>Last Name</label><input id="last" class="readonly" readonly required></div>
   <div><label>Phone Number</label><input id="phone" class="readonly" readonly></div>
   <div><label>Company Name</label><input id="company" placeholder="company" required></div>
+  <div><label>Transaction #</label><input id="transactionNumber" placeholder="transaction #" required></div>
   <div><label>Receiver Name</label><input id="receiver" placeholder="receiver" required></div>
   <div><label>Amount</label><input id="amount" type="number" step="0.01" min="0.01" placeholder="amount" required></div>
   <div><label>Transaction Fee</label><input id="fee" type="number" step="0.01" min="0" placeholder="fee" required></div>
@@ -332,7 +333,7 @@ body.profile-mode .history{display:none !important}
 <h3>User Transactions</h3>
 <div class="table">
 <table>
-<thead><tr><th>#</th><th>Receiver</th><th>Date</th><th>Company</th><th>Country</th><th>Amount</th><th>Fee</th><th></th></tr></thead>
+<thead><tr><th>#</th><th>Receiver</th><th>Date</th><th>Company</th><th>Transaction #</th><th>Country</th><th>Amount</th><th>Fee</th><th></th></tr></thead>
 <tbody id="rows"></tbody>
 <tfoot>
   <tr class="transactions-total">
@@ -381,7 +382,7 @@ body.profile-mode .history{display:none !important}
     <h3>Transactions Counted in 30 Days</h3>
     <div style="overflow-x:auto">
       <table class="review-table">
-        <thead><tr><th>#</th><th>Receiver</th><th>Date</th><th>Company</th><th>Country</th><th>Amount</th><th>Fee</th><th>Running Total</th></tr></thead>
+        <thead><tr><th>#</th><th>Receiver</th><th>Date</th><th>Company</th><th>Transaction #</th><th>Country</th><th>Amount</th><th>Fee</th><th>Running Total</th></tr></thead>
         <tbody id="reviewDetailRows"></tbody>
       </table>
     </div>
@@ -1049,6 +1050,7 @@ $("save").addEventListener("click", async ()=>{
 
   const requiredFields = [
     ["first","First Name"],["last","Last Name"],["company","Company Name"],
+    ["transactionNumber","Transaction #"],
     ["country","Sent To Country"],["amount","Amount"],["fee","Transaction Fee"],
     ["receiver","Receiver Name"],["date","Sent Date"]
   ];
@@ -1072,6 +1074,7 @@ $("save").addEventListener("click", async ()=>{
     receiver: $("receiver").value.trim(),
     date: $("date").value,
     company: newCompany,
+    transaction_number: $("transactionNumber").value.trim(),
     country: $("country").value.trim(),
     amount: Number($("amount").value),
     fee: Number($("fee").value),
@@ -1082,7 +1085,7 @@ $("save").addEventListener("click", async ()=>{
   if(error){ alert("Couldn't save that transaction: " + error.message); return; }
 
   newMode = false;
-  $("company").value = ""; $("receiver").value = ""; $("amount").value = ""; $("fee").value = ""; $("country").value = "";
+  $("company").value = ""; $("transactionNumber").value = ""; $("receiver").value = ""; $("amount").value = ""; $("fee").value = ""; $("country").value = "";
   $("date").value = todayStr();
   $("results").style.display = "none";
   await loadTransactionsForSelected();
@@ -1120,13 +1123,13 @@ function renderRows(){
 
   if(!list.length){
     const r = rowsEl.insertRow();
-    r.innerHTML = "<td colspan='8' class='empty'>No transactions found.</td>";
+    r.innerHTML = "<td colspan='9' class='empty'>No transactions found.</td>";
     return;
   }
 
   list.forEach((x,i)=>{
     const r = rowsEl.insertRow();
-    [i+1, x.receiver, displayDate(x.date), x.company, x.country, Number(x.amount).toFixed(2), Number(x.fee).toFixed(2)].forEach(v=>{
+    [i+1, x.receiver, displayDate(x.date), x.company, x.transaction_number || "", x.country, Number(x.amount).toFixed(2), Number(x.fee).toFixed(2)].forEach(v=>{
       const c = r.insertCell(); c.textContent = v;
     });
     const action = r.insertCell();
@@ -1222,13 +1225,14 @@ function openReviewDetail(cid, list, total){
       "<td>"+escapeHtml(t.receiver||"")+"</td>"+
       "<td>"+escapeHtml(displayDate(t.date))+"</td>"+
       "<td>"+escapeHtml(t.company||"")+"</td>"+
+      "<td>"+escapeHtml(t.transaction_number||"")+"</td>"+
       "<td>"+escapeHtml(t.country||"")+"</td>"+
       "<td>"+moneyStr(t.amount)+"</td>"+
       "<td>"+moneyStr(t.fee)+"</td>"+
       "<td class='review-running'>"+moneyStr(running)+"</td>";
     body.appendChild(tr);
   });
-  if(!sorted.length){ body.innerHTML = "<tr><td colspan='8'>No transactions in the last 30 days.</td></tr>"; }
+  if(!sorted.length){ body.innerHTML = "<tr><td colspan='9'>No transactions in the last 30 days.</td></tr>"; }
 
   document.body.classList.add("review-detail-mode");
   window.scrollTo(0,0);
@@ -1283,12 +1287,13 @@ async function exportAllTransactionsCsv(){
   const customerById = {};
   customers.forEach(c => { customerById[c.id] = (c.first + " " + c.last).trim(); });
 
-  const header = ["Date","Customer","Receiver","Company","Country","Amount","Fee"];
+  const header = ["Date","Customer","Receiver","Company","Transaction #","Country","Amount","Fee"];
   const rows = data.map(t => [
     displayDate(t.date),
     customerById[t.customer_id] || "",
     t.receiver || "",
     t.company || "",
+    t.transaction_number || "",
     t.country || "",
     Number(t.amount || 0).toFixed(2),
     Number(t.fee || 0).toFixed(2)
@@ -1313,9 +1318,9 @@ $("reviewExportBtn").addEventListener("click", ()=>{
     alert("There are no transactions to export for this customer.");
     return;
   }
-  const header = ["Date","Receiver","Company","Country","Amount","Fee"];
+  const header = ["Date","Receiver","Company","Transaction #","Country","Amount","Fee"];
   const rows = currentReviewExport.rows.map(t => [
-    displayDate(t.date), t.receiver || "", t.company || "", t.country || "",
+    displayDate(t.date), t.receiver || "", t.company || "", t.transaction_number || "", t.country || "",
     Number(t.amount || 0).toFixed(2), Number(t.fee || 0).toFixed(2)
   ]);
   const csv = [header, ...rows].map(row => row.map(csvField).join(",")).join("\r\n");
