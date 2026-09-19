@@ -533,6 +533,11 @@ function todayStr(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
+function displayDate(dateStr){
+  // Stored/queried as YYYY-MM-DD; shown to users as MM/DD/YYYY.
+  const m = String(dateStr || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : String(dateStr || "");
+}
 
 function showStatus(text, kind){
   const banner = $("statusBanner");
@@ -1121,7 +1126,7 @@ function renderRows(){
 
   list.forEach((x,i)=>{
     const r = rowsEl.insertRow();
-    [i+1, x.receiver, x.date, x.company, x.country, Number(x.amount).toFixed(2), Number(x.fee).toFixed(2)].forEach(v=>{
+    [i+1, x.receiver, displayDate(x.date), x.company, x.country, Number(x.amount).toFixed(2), Number(x.fee).toFixed(2)].forEach(v=>{
       const c = r.insertCell(); c.textContent = v;
     });
     const action = r.insertCell();
@@ -1186,7 +1191,7 @@ async function renderThreshold(){
       '<div class="customer-phone">'+escapeHtml(c.phone||"—")+'</div>'+
       '<div class="customer-count">'+list.length+'</div>'+
       '<div class="customer-total">'+moneyStr(total)+'</div>'+
-      '<div class="customer-last">'+escapeHtml(list[0]?.date||"—")+'</div>';
+      '<div class="customer-last">'+escapeHtml(list[0] ? displayDate(list[0].date) : "—")+'</div>';
     row.querySelector(".customer-open").addEventListener("click", ()=> openReviewDetail(c.id, list, total));
     rowsEl.appendChild(row);
   });
@@ -1215,7 +1220,7 @@ function openReviewDetail(cid, list, total){
     const tr = document.createElement("tr");
     tr.innerHTML = "<td>"+(i+1)+"</td>"+
       "<td>"+escapeHtml(t.receiver||"")+"</td>"+
-      "<td>"+escapeHtml(t.date||"")+"</td>"+
+      "<td>"+escapeHtml(displayDate(t.date))+"</td>"+
       "<td>"+escapeHtml(t.company||"")+"</td>"+
       "<td>"+escapeHtml(t.country||"")+"</td>"+
       "<td>"+moneyStr(t.amount)+"</td>"+
@@ -1280,7 +1285,7 @@ async function exportAllTransactionsCsv(){
 
   const header = ["Date","Customer","Receiver","Company","Country","Amount","Fee"];
   const rows = data.map(t => [
-    t.date,
+    displayDate(t.date),
     customerById[t.customer_id] || "",
     t.receiver || "",
     t.company || "",
@@ -1310,7 +1315,7 @@ $("reviewExportBtn").addEventListener("click", ()=>{
   }
   const header = ["Date","Receiver","Company","Country","Amount","Fee"];
   const rows = currentReviewExport.rows.map(t => [
-    t.date, t.receiver || "", t.company || "", t.country || "",
+    displayDate(t.date), t.receiver || "", t.company || "", t.country || "",
     Number(t.amount || 0).toFixed(2), Number(t.fee || 0).toFixed(2)
   ]);
   const csv = [header, ...rows].map(row => row.map(csvField).join(",")).join("\r\n");
