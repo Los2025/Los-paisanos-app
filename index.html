@@ -22,6 +22,7 @@
   --line-soft:#EAEEF1;
   --tint:#EFF4F5;
   --gold:#C79A3A;
+  --header-bg:var(--navy);
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   --radius:6px;
 }
@@ -31,7 +32,7 @@ body{margin:0;font-family:var(--font);color:var(--ink);background:var(--paper);f
 h1,h2,h3{font-family:var(--font)}
 
 /* ============ Header ============ */
-header{height:76px;background:var(--navy);border-bottom:3px solid var(--gold);color:#fff;display:flex;align-items:center;padding:0 28px}
+header{height:76px;background:var(--header-bg);border-bottom:3px solid var(--gold);color:#fff;display:flex;align-items:center;padding:0 28px}
 .brand{font-size:20px;font-weight:700;letter-spacing:.2px}
 .brand small{display:block;font-size:12px;font-weight:400;margin-top:3px;color:#9FB4C4;letter-spacing:.2px}
 
@@ -430,6 +431,17 @@ body.profile-mode .history{display:none !important}
       </div>
     </div>
 
+    <div class="profile-section">
+      <h3>Appearance</h3>
+      <div class="profile-row">
+        <div class="profile-label">Header Color</div>
+        <div class="profile-value">
+          <input type="color" id="headerColorInput" value="#0F2438" style="width:44px;height:32px;border:1px solid var(--line);border-radius:4px;padding:2px;cursor:pointer;vertical-align:middle">
+          <button type="button" id="headerColorResetBtn" class="mfa-btn">Reset to Default</button>
+        </div>
+      </div>
+    </div>
+
     <div id="profileSaveMessage" style="margin-top:10px;color:#2d6a4f;font-size:13px"></div>
   </div>
 </section>
@@ -577,6 +589,7 @@ function applyProfileToHeader(){
   if(!profile) return;
   const headerName = $("headerCompanyName");
   if(headerName) headerName.textContent = profile.company_name || "Los Paisanos";
+  document.documentElement.style.setProperty("--header-bg", profile.header_color || "");
 }
 
 $("loginBtn").addEventListener("click", attemptLogin);
@@ -1365,8 +1378,31 @@ function loadProfileView(){
   $("profileCompanyName").textContent = profile.company_name || "—";
   $("profileDisplayName").textContent = profile.display_name || "—";
   $("profileEmail").textContent = session?.user?.email || "—";
+  $("headerColorInput").value = profile.header_color || "#0F2438";
   loadMfaStatus();
 }
+
+$("headerColorInput").addEventListener("change", async ()=>{
+  const color = $("headerColorInput").value;
+  const { error } = await sb.from("profiles").update({ header_color: color }).eq("id", profile.id);
+  if(error){ alert("Couldn't save header color: " + error.message); return; }
+  profile = { ...profile, header_color: color };
+  applyProfileToHeader();
+  const msg = $("profileSaveMessage");
+  msg.textContent = "Header color updated.";
+  setTimeout(()=>{ msg.textContent = ""; }, 2000);
+});
+
+$("headerColorResetBtn").addEventListener("click", async ()=>{
+  const { error } = await sb.from("profiles").update({ header_color: null }).eq("id", profile.id);
+  if(error){ alert("Couldn't reset header color: " + error.message); return; }
+  profile = { ...profile, header_color: null };
+  $("headerColorInput").value = "#0F2438";
+  applyProfileToHeader();
+  const msg = $("profileSaveMessage");
+  msg.textContent = "Header color reset to default.";
+  setTimeout(()=>{ msg.textContent = ""; }, 2000);
+});
 $("profileBtn").addEventListener("click", ()=>{
   document.body.classList.remove("threshold-mode","review-detail-mode");
   document.body.classList.add("profile-mode");
